@@ -1,0 +1,12 @@
+---
+name: spod5
+version: 0.01
+author: ~
+abstract: Turn pod into S5
+license: perl
+requires:
+  Pod::POM: 0.17
+  Pod::POM::View::HTML::Filter: 0.05
+  Test::More: 0
+provides: {}
+generated_by: Module::Build version 0.26

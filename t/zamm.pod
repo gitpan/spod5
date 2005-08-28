@@ -1,0 +1,15 @@
+=meta title test
+
+=meta author book
+
+=head1 test
+
++>>
+* test 1
+* test 2
+-
+
+=head1 Insert file
+
+=include blurp.pod
+

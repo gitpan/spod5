@@ -1,0 +1,7 @@
+spod5 is a quick hack that helps you turn slides written in plain text
+into full-blown S5 presentation.
+
+Slides can be written in Pod, or a language that is turned into valid
+pod by lots of regular expressions. That pod is then turned into HTML.
+You can add your own styles to S5.
+

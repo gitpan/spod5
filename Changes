@@ -1,0 +1,8 @@
+Revision history for spod5
+
+0.01 Sun Aug 28 17:38:36 CEST 2005
+        - script released for YAPC::Europe 2005
+        - support for =exec and =include
+        - it is a cleaned-up and expanded version of several
+          quick hacks aimed at writing S5 slides in pod
+          
