@@ -12,7 +12,8 @@ WriteMakefile
           'PREREQ_PM' => {
                            'Test::More' => 0,
                            'Pod::POM::View::HTML::Filter' => '0.05',
-                           'Pod::POM' => '0.17'
+                           'Pod::POM' => '0.17',
+                           'Template' => '2.08',
                          }
         )
 ;

@@ -6,10 +6,10 @@ my $build = Module::Build->new(
     requires          => {
         'Pod::POM'                     => '0.17',
         'Pod::POM::View::HTML::Filter' => '0.05',
+        'Template'                     => '2.08',
         'Test::More'                   => 0,
     },
     script_files       => glob('script/*'),
-    create_makefile_pl => 'traditional',
     add_to_cleanup      => [ 'spod5-*', 't/zamm.html' ],
 );
 $build->create_build_script;

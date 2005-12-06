@@ -108,7 +108,7 @@ use Template;
 use File::Spec;
 use File::Basename;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 # usage message
 my $usage = << "USAGE";
@@ -119,6 +119,7 @@ Available options:
   --base   <dir>   : directory containing the S5 .css and .js files
   --slides <file>  : alternate slides.css (relative to --base)
   --debug          : print the intermediate pod to STDOUT
+  --multi          : create one HTML file per slide
 USAGE
 
 # basic command-line params
@@ -129,9 +130,10 @@ my %conf = (
     base   => File::Spec->catfile( 'ui', 'default' ),
     slides => 'slides.css',
     exec   => 0,
+    multi  => 0,
 );
 GetOptions( \%conf, "quiet!", "force!", "debug!", "base=s", "exec!",
-    "slides=s", "help!", "version!" )
+    "slides=s", "multi!", "help!", "version!" )
   or die $usage;
 
 # information
@@ -142,7 +144,7 @@ exit if $conf{help} || $conf{version};
 # all the useful stuff here
 my $parser   = Pod::POM->new();
 my $tt       = Template->new();
-my $template = join '', <DATA>;
+my @template = split /^EOT\n/m, join( '', <DATA> );
 $|++;
 
 # helper sub
@@ -162,7 +164,7 @@ sub include {
 my @files = @ARGV;
 for my $file (@files) {
     @ARGV = ($file);
-    (my $new = $file) =~ s/(?:\.pod)?$/.html/;
+    ( my $new = $file ) =~ s/(?:\.pod)?$/.html/;
 
     print STDERR "$file... " unless $conf{quiet};
     next
@@ -198,17 +200,51 @@ for my $file (@files) {
     $pom->metadata( base => $conf{base} );
     $pom->metadata( slides => $pom->metadata('slides') || $conf{slides} );
 
-    # produce the HTML
-    $tt->process(
-        \$template,
-        {
-            pom  => $pom,
-            view => Pod::POM::View::MyHTML->new(),
-            meta => $pom->metadata,
-        },
-        $new
-      )
-      || warn $tt->error;
+    if( $conf{multi} ) {
+        # file name
+        $new = basename($new);
+        $new =~ s/\.html$/%04d.html/;
+
+        # print table of contents using each =head1 title
+        my $n = 0;
+        my $zero = sprintf( $new, $n );
+        my $total =()= $pom->head1();
+        $total--; # counting from 0
+        for my $slide ($pom->head1()) {
+            my $prev = $n > 0      ? sprintf( $new, $n - 1 ) : '';
+            my $next = $n < $total ? sprintf( $new, $n + 1 ) : '';
+            $tt->process(
+                \$template[1],
+                {
+                    pom   => $slide,
+                    slide => {
+                        total  => $total,
+                        number => $n,
+                        zero => $zero,
+                        next => $next,
+                        prev => $prev,
+                    },
+                    view  => Pod::POM::View::MyHTML->new(),
+                    meta  => $pom->metadata,
+                },
+                sprintf( $new, $n )
+            )
+            || warn $tt->error;
+            $n++;
+        }
+    }
+    else { # produce the HTML in a single file
+        $tt->process(
+            \$template[0],
+            {
+                pom  => $pom,
+                view => Pod::POM::View::MyHTML->new(),
+                meta => $pom->metadata,
+            },
+            $new
+          )
+          || warn $tt->error;
+    }
 
     print STDERR "done\n" unless $conf{quiet};
 }
@@ -222,7 +258,8 @@ spod5 - Turn pod into S5
 =head1 SYNOPSIS
 
 B<spod5> [--I<quiet>] [--I<force>] [--I<exec>] [I<--base> F<dir>]
-    [--I<slides> F<style.css>] [--I<help>] [--I<version>] file.pod [ ... ]
+    [--I<slides> F<style.css>] [--I<multi>] [--I<help>] [--I<version>]
+    file.pod [ ... ]
 
 =head1 DESCRIPTION
 
@@ -253,6 +290,11 @@ Default is F<ui/default>.
 Provide a replacement for the standard F<slides.css> file found in
 F<ui/default>. This allows one to define their own styles. See also
 the C<=meta slides> directive in the source file.
+
+=item --I<multi>
+
+Use an alternative template to create an HTML file per slide.
+(This is still beta.)
 
 =item --I<exec>
 
@@ -384,7 +426,7 @@ Copyright 2005, Philippe Bruhat.
 
 =head1 LICENSE
 
-This scritp is free software; you can redistribute it or modify it under
+This script is free software; you can redistribute it or modify it under
 the same terms as Perl itself.
 
 =cut
@@ -485,6 +527,94 @@ __DATA__
 <h4>[% meta.company %]</h4>
 [% meta.title_bottom %]
 </div>
+
+[% pom.present(view) %]
+
+</div>
+
+</body>
+</html>
+EOT
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>[% meta.title %]</title>
+<!-- metadata -->
+<meta name="generator" content="spod5" />
+<meta name="presdate" content="[% meta.presdate %]" />
+<meta name="author" content="[% meta.author %]" />
+<meta name="company" content="[% meta.company %]" />
+
+<style type="text/css">
+<!--
+/* 
+ * perltidy's styles
+ */
+.c  { color: #228B22;                    } /* comment */
+.cm { color: #000000;                    } /* comma */
+.co { color: #000000;                    } /* colon */
+.h  { color: #CD5555; font-weight:bold;  } /* here-doc-target */
+.hh { color: #CD5555; font-style:italic; } /* here-doc-text */
+.i  { color: #00688B;                    } /* identifier */
+.j  { color: #000000; font-weight:bold;  } /* label */
+.k  { color: #8B4513; font-weight:bold;  } /* keyword */
+.m  { color: #FF0000; font-weight:bold;  } /* subroutine */
+.n  { color: #B452CD;                    } /* numeric */
+.p  { color: #000000;                    } /* paren */
+.pd { color: #228B22; font-style:italic; } /* pod-text */
+.pu { color: #000000;                    } /* punctuation */
+.q  { color: #CD5555;                    } /* quote */
+.s  { color: #000000;                    } /* structure */
+.sc { color: #000000;                    } /* semicolon */
+.v  { color: #B452CD;                    } /* v-string */
+.w  { color: #000000;                    } /* bareword */
+
+/* ====================================================================== *
+ * Sample stylesheet for Syntax::Highlight::HTML                          *
+ *                                                                        *
+ * Copyright (C)2004 Sebastien Aperghis-Tramoni, All Rights Reserved.     *
+ *                                                                        *
+ * This file is free software; you can redistribute it and/or modify      *
+ * it under the same terms as Perl itself.                                *
+ * ====================================================================== */
+
+.h-decl { color: #336699; font-style: italic; }   /* doctype declaration  */
+.h-pi   { color: #336699;                     }   /* process instruction  */
+.h-com  { color: #338833; font-style: italic; }   /* comment              */
+.h-ab   { color: #000000; font-weight: bold;  }   /* angles as tag delim. */
+.h-tag  { color: #993399; font-weight: bold;  }   /* tag name             */
+.h-attr { color: #000000; font-weight: bold;  }   /* attribute name       */
+.h-attv { color: #333399;                     }   /* attribute value      */
+.h-ent  { color: #cc3333;                     }   /* entity               */
+
+.h-lno  { color: #cccccc; background: #eee;   }   /* line numbers         */
+-->
+</style>
+
+
+</head>
+<body onload="document.links[0].focus()">
+
+<table width="100%">
+<tr><td align="left">
+  <div class="navbar">|
+  [% IF slide.next %]<a href="[% slide.next %]" id="next">Next</a> |[% END %]
+  <a href="[% slide.zero %]">Home</a> |
+  [% IF slide.prev %]<a href="[% slide.prev %]" id="prev">Previous</a> |[% END %]
+  </div>
+
+</td><td align="center">
+[% IF slide.number != 0 %]<span class="pagenum">[% slide.number %]/[% slide.total %]</span>[% END %]
+</td><td align="right">
+<div class="copyright">[% meta.author %]</div>
+</td></tr></table>
+
+<hr />
+
+<div class="slide">
 
 [% pom.present(view) %]
 
